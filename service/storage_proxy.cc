@@ -3619,6 +3619,16 @@ void storage_proxy::on_down(const gms::inet_address& endpoint) {
     }
 };
 
+void storage_proxy::drain_on_shutdown() {
+    assert(seastar::thread::running_in_thread());
+    for (auto it = _view_update_handlers_list->begin(); it != _view_update_handlers_list->end(); ++it) {
+        auto guard = it->shared_from_this();
+        it->timeout_cb();
+        seastar::thread::yield();
+    }
+    _hints_resource_manager.stop().get();
+}
+
 future<> storage_proxy::stop_hints_manager() {
     return _hints_resource_manager.stop();
 }
